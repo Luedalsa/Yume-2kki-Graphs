@@ -1,6 +1,7 @@
 #define NOMINMAX
 #include <lcf/lmu/reader.h>
 #include <lcf/ldb/reader.h>
+#include <lcf/lmt/reader.h>
 #include <lcf/rpg/map.h>
 #include <lcf/rpg/database.h>
 #include <iostream>
@@ -9,6 +10,9 @@
 #include <vector>
 #include <algorithm>
 #include <windows.h>
+#include <sstream>
+#include <iomanip>
+#include <memory>
 
 // Converts UTF-16 wide string to UTF-8
 std::string wideToUtf8(const std::wstring& wide) {
@@ -19,6 +23,20 @@ std::string wideToUtf8(const std::wstring& wide) {
     return result;
 }
 
+std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) {
+    std::wstringstream ss;
+    ss << basePath << L"/Map" << std::setw(4) << std::setfill(L'0') << mapId << L".lmu";
+    std::wstring mapPathW = ss.str();
+
+    std::ifstream mapStream(mapPathW, std::ios::binary);
+    if (!mapStream.is_open()) {
+        std::cerr << "Error: No se pudo abrir el archivo del mapa con ID " << mapId << "." << std::endl;
+        return nullptr;
+    }
+
+    return lcf::LMU_Reader::Load(mapStream, "cp932");
+}
+
 int wmain(int argc, wchar_t* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     if (argc < 2) {
@@ -26,21 +44,17 @@ int wmain(int argc, wchar_t* argv[]) {
         return 1;
     }
 
-    // Build the wide path directly — no encoding corruption
-    std::wstring mapPathW = std::wstring(argv[1]) + L"/Map0002.lmu";
+    std::wstring basePath(argv[1]);
 
-    // Open the file ourselves using the wide path (Windows handles Japanese correctly)
-    std::ifstream mapStream(mapPathW, std::ios::binary);
-    if (!mapStream.is_open()) {
-        std::cerr << "Error: No se pudo abrir el archivo del mapa." << std::endl;
+    // Use helper function to load map
+    auto map = loadMap(basePath, 10);
+
+    if (!map) {
         return 1;
     }
 
-    // Pass the stream to lcf — bypasses its internal (broken) file open
-    auto map = lcf::LMU_Reader::Load(mapStream, "cp932");
-
     // NEW: Load the Database to get collision data
-    std::wstring ldbPathW = std::wstring(argv[1]) + L"/RPG_RT.ldb";
+    std::wstring ldbPathW = basePath + L"/RPG_RT.ldb";
     std::ifstream ldbStream(ldbPathW, std::ios::binary);
     std::unique_ptr<lcf::rpg::Database> db = nullptr;
 
@@ -50,9 +64,29 @@ int wmain(int argc, wchar_t* argv[]) {
         std::cerr << "Advertencia: No se pudo cargar RPG_RT.ldb. La detección de colisiones no funcionará." << std::endl;
     }
 
+    // Load the Map Tree to get map names
+    std::wstring lmtPathW = basePath + L"/RPG_RT.lmt";
+    std::ifstream lmtStream(lmtPathW, std::ios::binary);
+    std::unique_ptr<lcf::rpg::TreeMap> treeMap = nullptr;
+
+    if (lmtStream.is_open()) {
+        treeMap = lcf::LMT_Reader::Load(lmtStream, "cp932");
+    } else {
+        std::cerr << "Advertencia: No se pudo cargar RPG_RT.lmt. Los nombres de mapa no estarán disponibles." << std::endl;
+    }
+
     if (map) {
         std::cout << "Mapa cargado con éxito!" << std::endl;
         std::cout << "Dimensiones: " << map->width << "x" << map->height << std::endl;
+
+        if (treeMap) {
+            auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
+                return info.ID == 10;
+            });
+            if (it != treeMap->maps.end()) {
+                std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
+            }
+        }
 
         // Find the chipset used by this map
         const lcf::rpg::Chipset* chipset = nullptr;
@@ -127,7 +161,33 @@ int wmain(int argc, wchar_t* argv[]) {
         }
 
         for (const auto& event : map->events) {
-            std::cout << "Evento detectado: " << event.name << std::endl;
+            //std::cout << "Evento detectado: " << event.name << std::endl;
+            for (const auto& pages : event.pages) {
+                //std::cout << "  Página con condiciones: " << pages.condition << " y " << pages.event_commands.size() << " comandos" << std::endl;
+                for (const auto& cmd : pages.event_commands) {
+                    //std::cout << "    Comando: " << cmd.code << " - " << cmd.parameters.size() << " parámetros" << std::endl;
+                    if (cmd.code == 10810) {
+                        std::cout << "Found tp command to world: " << cmd.parameters[0] << std::endl;
+
+                        if (treeMap) {
+                            auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
+                                return info.ID == cmd.parameters[0];
+                            });
+                            if (it != treeMap->maps.end()) {
+                                std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
+                            }
+                        }
+
+                        auto targetMap = loadMap(basePath, cmd.parameters[0]);
+                        if (targetMap) {
+                            std::cout << "Mapa de destino cargado con éxito!" << std::endl;
+                            std::cout << "Dimensiones: " << targetMap->width << "x" << targetMap->height << std::endl;
+                        } else {
+                            std::cerr << "Error al cargar el mapa de destino." << std::endl;
+                        }
+                    }
+                }
+            }
         }
     } else {
         std::cerr << "Error al cargar el mapa." << std::endl;
