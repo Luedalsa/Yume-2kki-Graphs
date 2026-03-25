@@ -14,6 +14,19 @@
 #include <iomanip>
 #include <memory>
 
+enum class Condition {
+    None,
+    TargetMoving,
+    EffectApplied,
+    Unknown
+};
+
+struct Edge {
+    std::string destination;
+    Condition requiredCondition;
+    int weight;
+};
+
 // Converts UTF-16 wide string to UTF-8
 std::string wideToUtf8(const std::wstring& wide) {
     if (wide.empty()) return {};
