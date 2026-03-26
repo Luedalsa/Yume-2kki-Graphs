@@ -27,6 +27,10 @@ struct Edge {
     int weight;
 };
 
+class Node {
+    std::vector<Edge> edges;
+};
+
 // Converts UTF-16 wide string to UTF-8
 std::string wideToUtf8(const std::wstring& wide) {
     if (wide.empty()) return {};
