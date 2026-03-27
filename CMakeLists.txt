@@ -3,6 +3,7 @@ project(Yume-2kki-Graph)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+set(GRAPHVIZ_DIR "C:/Program Files/Graphviz")
 
 add_executable(Yume-2kki-Graph main.cpp)
 
@@ -18,4 +19,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 FetchContent_MakeAvailable(liblcf)
 
-target_link_libraries(Yume-2kki-Graph PRIVATE lcf)
+
+file(GLOB GVC_LIBS "${GRAPHVIZ_DIR}/lib/*.lib")
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE lcf ${GVC_LIBS})
+include_directories("${GRAPHVIZ_DIR}/include/graphviz")
