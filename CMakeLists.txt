@@ -19,7 +19,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 FetchContent_MakeAvailable(liblcf)
 
-
 file(GLOB GVC_LIBS "${GRAPHVIZ_DIR}/lib/*.lib")
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE lcf ${GVC_LIBS})
 include_directories("${GRAPHVIZ_DIR}/include/graphviz")
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE "${GRAPHVIZ_DIR}/include/graphviz")
