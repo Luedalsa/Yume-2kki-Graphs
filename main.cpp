@@ -64,8 +64,8 @@ class Graph {
 
 public:
     // Agrega un nodo y devuelve su índice
-    int addNode(const std::string& name) {
-        nodes.emplace_back(name);
+    int addNode(const Node& node) {
+        nodes.emplace_back(node);
         return static_cast<int>(nodes.size()) - 1;
     }
 
@@ -128,6 +128,12 @@ public:
         Agnode_t *nB = agnode(g, (char*)"B", 1);
         Agnode_t *nC = agnode(g, (char*)"C", 1);
         Agnode_t *nD = agnode(g, (char*)"D", 1);
+
+        std::vector<Agnode_t*> nodesAg;
+
+        for (auto node : nodes) {
+            nodesAg.push_back(agnode(g, const_cast<char *>(node.name.c_str()), 1));
+        }
 
         // Personalizar nodos individualmente
         agsafeset(nA, (char*)"label",     (char*)"Inicio",    (char*)"");
@@ -203,6 +209,19 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
 
 std::unique_ptr<Graph> makeMainGraph() {
     auto graph = std::make_unique<Graph>();
+    Node a = Node("Inicio");
+    Node b = Node("Camino A");
+    Node c = Node("Camino B");
+    Node d = Node("Fin");
+    a.connectTo(b, Condition::TargetMoving);
+    a.connectTo(c, Condition::TargetMoving);
+    a.connectTo(d, Condition::Unknown);
+    b.connectTo(d, Condition::EffectApplied);
+    c.connectTo(d, Condition::EffectApplied);
+    graph->addNode(a);
+    graph->addNode(b);
+    graph->addNode(c);
+    graph->addNode(d);
     return graph;
 }
 
