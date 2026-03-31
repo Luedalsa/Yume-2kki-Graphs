@@ -17,6 +17,7 @@
 
 #include <cgraph.h>
 #include <gvc.h>
+#include <queue>
 
 enum class Condition {
     None,
@@ -25,23 +26,82 @@ enum class Condition {
     Unknown
 };
 
+class Node;
+
 struct Edge {
-    int destination;
-    Condition requiredCondition;
-    int weight;
+    Node&  dest;
+    Condition cond;
+    int  weight;
+
+    Edge(Node& dest, Condition cond = Condition::None, int weight = 1)
+        : dest(dest), cond(cond), weight(weight) {}
 };
 
+// ─── Node ────────────────────────────────────────────────────────────────────
 class Node {
     std::vector<Edge> edges;
-    public:
-    void connectTo(int dest, Condition cond = Condition::None, int weight = 1) {
+
+public:
+    std::string name;
+
+    Node() = default;
+
+    explicit Node(const std::string& name)
+        : name(name) {}
+
+    void connectTo(Node& dest, Condition cond = Condition::None, int weight = 1) {
         edges.push_back({dest, cond, weight});
+    }
+
+    const std::vector<Edge>& getEdges() const {
+        return edges;
     }
 };
 
+// ─── Graph ───────────────────────────────────────────────────────────────────
 class Graph {
-public:
     std::vector<Node> nodes;
+
+public:
+    // Agrega un nodo y devuelve su índice
+    int addNode(const std::string& name) {
+        nodes.emplace_back(name);
+        return static_cast<int>(nodes.size()) - 1;
+    }
+
+    // Dijkstra: devuelve el costo mínimo de 'start' a 'end'
+    // Ignora aristas con condición Locked
+    /*
+    int shortestPath(int start, int end) const {
+        const int INF = std::numeric_limits<int>::max();
+        std::vector<int> dist(nodes.size(), INF);
+        dist[start] = 0;
+
+        // {costo, nodo}
+        std::priority_queue<std::pair<int,int>,
+            std::vector<std::pair<int,int>>,
+            std::greater<>> pq;
+        pq.push({0, start});
+
+        while (!pq.empty()) {
+            auto [cost, u] = pq.top(); pq.pop();
+
+            if (cost > dist[u]) continue;
+            if (u == end)       return dist[u];
+
+            for (const Edge& e : nodes[u].getEdges()) {
+                //if (e.cond == Condition::Locked) continue;   // bloqueado
+
+                int newCost = dist[u] + e.weight;
+                if (newCost < dist[e.dest]) {
+                    dist[e.dest] = newCost;
+                    pq.push({newCost, e.dest});
+                }
+            }
+        }
+        return -1; // sin ruta
+    }*/
+
     void draw() {
 
         // ── 1. Contexto de Graphviz ─────────────────────────────────────────────
@@ -143,7 +203,6 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
 
 std::unique_ptr<Graph> makeMainGraph() {
     auto graph = std::make_unique<Graph>();
-    graph->nodes.insert(graph->nodes.begin(), 4, Node());
     return graph;
 }
 
