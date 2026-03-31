@@ -129,10 +129,10 @@ public:
         Agnode_t *nC = agnode(g, (char*)"C", 1);
         Agnode_t *nD = agnode(g, (char*)"D", 1);
 
-        std::vector<Agnode_t*> nodesAg;
+        std::vector<std::pair<Agnode_t*, Node*>> nodesAg;
 
         for (auto node : nodes) {
-            nodesAg.push_back(agnode(g, const_cast<char *>(node.name.c_str()), 1));
+            nodesAg.push_back(std::pair(agnode(g, const_cast<char *>(node.name.c_str()), 1), &node));
         }
 
         // Personalizar nodos individualmente
