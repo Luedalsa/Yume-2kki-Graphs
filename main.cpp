@@ -17,7 +17,6 @@
 
 #include <cgraph.h>
 #include <gvc.h>
-#include <queue>
 
 enum class Condition {
     None,
@@ -29,155 +28,74 @@ enum class Condition {
 class Node;
 
 struct Edge {
-    Node&  dest;
+    int  destIndex;
     Condition cond;
     int  weight;
 
-    Edge(Node& dest, Condition cond = Condition::None, int weight = 1)
-        : dest(dest), cond(cond), weight(weight) {}
+    Edge(int destIndex, Condition cond = Condition::None, int weight = 1)
+        : destIndex(destIndex), cond(cond), weight(weight) {}
 };
 
-// ─── Node ────────────────────────────────────────────────────────────────────
 class Node {
     std::vector<Edge> edges;
-
 public:
     std::string name;
 
     Node() = default;
+    explicit Node(const std::string& name) : name(name) {}
 
-    explicit Node(const std::string& name)
-        : name(name) {}
-
-    void connectTo(Node& dest, Condition cond = Condition::None, int weight = 1) {
-        edges.push_back({dest, cond, weight});
+    void connectTo(int destIndex, Condition cond = Condition::None, int weight = 1) {
+        edges.emplace_back(destIndex, cond, weight);
     }
 
-    const std::vector<Edge>& getEdges() const {
-        return edges;
-    }
+    const std::vector<Edge>& getEdges() const { return edges; }
 };
 
-// ─── Graph ───────────────────────────────────────────────────────────────────
 class Graph {
     std::vector<Node> nodes;
-
 public:
-    // Agrega un nodo y devuelve su índice
-    int addNode(const Node& node) {
-        nodes.emplace_back(node);
+    int addNode(Node node) {
+        nodes.push_back(std::move(node));
         return static_cast<int>(nodes.size()) - 1;
     }
 
-    // Dijkstra: devuelve el costo mínimo de 'start' a 'end'
-    // Ignora aristas con condición Locked
-    /*
-    int shortestPath(int start, int end) const {
-        const int INF = std::numeric_limits<int>::max();
-        std::vector<int> dist(nodes.size(), INF);
-        dist[start] = 0;
-
-        // {costo, nodo}
-        std::priority_queue<std::pair<int,int>,
-            std::vector<std::pair<int,int>>,
-            std::greater<>> pq;
-        pq.push({0, start});
-
-        while (!pq.empty()) {
-            auto [cost, u] = pq.top(); pq.pop();
-
-            if (cost > dist[u]) continue;
-            if (u == end)       return dist[u];
-
-            for (const Edge& e : nodes[u].getEdges()) {
-                //if (e.cond == Condition::Locked) continue;   // bloqueado
-
-                int newCost = dist[u] + e.weight;
-                if (newCost < dist[e.dest]) {
-                    dist[e.dest] = newCost;
-                    pq.push({newCost, e.dest});
-                }
-            }
-        }
-        return -1; // sin ruta
-    }*/
+    void connect(int from, int to,
+             Condition cond = Condition::None, int weight = 1) {
+        nodes[from].connectTo(to, cond, weight);
+    }
 
     void draw() {
+        GVC_t* gvc = gvContext();
+        Agraph_t* g = agopen((char*)"mi_grafo", Agdirected, nullptr);
 
-        // ── 1. Contexto de Graphviz ─────────────────────────────────────────────
-        GVC_t *gvc = gvContext();
+        agattr(g, AGNODE, (char*)"shape",     (char*)"circle");
+        agattr(g, AGNODE, (char*)"style",     (char*)"filled");
+        agattr(g, AGNODE, (char*)"fillcolor", (char*)"lightblue");
+        agattr(g, AGNODE, (char*)"fontname",  (char*)"Helvetica");
+        agattr(g, AGEDGE, (char*)"color",     (char*)"gray40");
+        agattr(g, AGEDGE, (char*)"fontname",  (char*)"Helvetica");
+        agattr(g, AGEDGE, (char*)"fontsize",  (char*)"10");
 
-        // ── 2. Crear el grafo dirigido ──────────────────────────────────────────
-        // Agdirected  → grafo dirigido (digraph)
-        // Agundirected → grafo no dirigido
-        Agraph_t *g = agopen((char*)"mi_grafo", Agdirected, nullptr);
-
-        // ── 3. Atributos globales (se aplican a todos los nodos/aristas) ────────
-        agattr(g, AGNODE, (char*)"shape",     "circle");
-        agattr(g, AGNODE, (char*)"style",     "filled");
-        agattr(g, AGNODE, (char*)"fillcolor", "lightblue");
-        agattr(g, AGNODE, (char*)"fontname",  "Helvetica");
-
-        agattr(g, AGEDGE, (char*)"color",    "gray40");
-        agattr(g, AGEDGE, (char*)"fontname", "Helvetica");
-        agattr(g, AGEDGE, (char*)"fontsize", "10");
-
-        // ── 4. Crear nodos ──────────────────────────────────────────────────────
-        // agnode(grafo, nombre_interno, crear_si_no_existe)
-        Agnode_t *nA = agnode(g, (char*)"A", 1);
-        Agnode_t *nB = agnode(g, (char*)"B", 1);
-        Agnode_t *nC = agnode(g, (char*)"C", 1);
-        Agnode_t *nD = agnode(g, (char*)"D", 1);
-
-        std::vector<std::pair<Agnode_t*, Node*>> nodesAg;
-
-        for (auto node : nodes) {
-            nodesAg.push_back(std::pair(agnode(g, const_cast<char *>(node.name.c_str()), 1), &node));
+        std::vector<Agnode_t*> agNodes(nodes.size());
+        for (int i = 0; i < (int)nodes.size(); ++i) {
+            agNodes[i] = agnode(g, (char*)nodes[i].name.c_str(), 1);
         }
 
-        // Personalizar nodos individualmente
-        agsafeset(nA, (char*)"label",     (char*)"Inicio",    (char*)"");
-        agsafeset(nA, (char*)"fillcolor", (char*)"#4CAF50",   (char*)"");
-        agsafeset(nA, (char*)"fontcolor", (char*)"white",     (char*)"");
+        for (int i = 0; i < (int)nodes.size(); ++i) {
+            for (const Edge& edge : nodes[i].getEdges()) {
+                Agnode_t* src  = agNodes[i];
+                Agnode_t* dest = agNodes[edge.destIndex];  // ← siempre válido
+                Agedge_t* e = agedge(g, src, dest, nullptr, 1);
+                std::string label = "peso: " + std::to_string(edge.weight);
+                agsafeset(e, (char*)"label", (char*)label.c_str(), (char*)"");
+            }
+        }
 
-        agsafeset(nD, (char*)"label",     (char*)"Fin",       (char*)"");
-        agsafeset(nD, (char*)"fillcolor", (char*)"#F44336",   (char*)"");
-        agsafeset(nD, (char*)"fontcolor", (char*)"white",     (char*)"");
-        agsafeset(nD, (char*)"shape",     (char*)"doublecircle", (char*)"");
-
-        // ── 5. Crear aristas ────────────────────────────────────────────────────
-        // agedge(grafo, nodo_origen, nodo_destino, nombre, crear_si_no_existe)
-        Agedge_t *eAB = agedge(g, nA, nB, (char*)"AB", 1);
-        Agedge_t *eAC = agedge(g, nA, nC, (char*)"AC", 1);
-        Agedge_t *eBD = agedge(g, nB, nD, (char*)"BD", 1);
-        Agedge_t *eCD = agedge(g, nC, nD, (char*)"CD", 1);
-
-        // Etiquetar aristas
-        agsafeset(eAB, (char*)"label", (char*)"peso: 3", (char*)"");
-        agsafeset(eAC, (char*)"label", (char*)"peso: 1", (char*)"");
-        agsafeset(eBD, (char*)"label", (char*)"peso: 5", (char*)"");
-        agsafeset(eCD, (char*)"label", (char*)"peso: 2", (char*)"");
-
-        // Marcar el camino más corto (A→C→D) con color diferente
-        agsafeset(eAC, (char*)"color",     (char*)"#FF6600", (char*)"");
-        agsafeset(eAC, (char*)"penwidth",  (char*)"2.5",     (char*)"");
-        agsafeset(eCD, (char*)"color",     (char*)"#FF6600", (char*)"");
-        agsafeset(eCD, (char*)"penwidth",  (char*)"2.5",     (char*)"");
-
-        // ── 6. Aplicar layout y renderizar ─────────────────────────────────────
-        // Algoritmos disponibles: "dot" (jerárquico), "neato", "fdp", "circo", "twopi"
         gvLayout(gvc, g, "dot");
+        gvRenderFilename(gvc, g, "png", "grafo.png");
+        gvRenderFilename(gvc, g, "svg", "grafo.svg");
+        gvRenderFilename(gvc, g, "dot", "grafo.dot");
 
-        gvRenderFilename(gvc, g, "png", "grafo.png");   // Imagen PNG
-        gvRenderFilename(gvc, g, "svg", "grafo.svg");   // SVG (vectorial)
-        gvRenderFilename(gvc, g, "dot", "grafo.dot");   // Código DOT generado
-
-        printf("Archivos generados:\n");
-        printf("  grafo.png  — imagen\n");
-        printf("  grafo.svg  — vectorial\n");
-        printf("  grafo.dot  — codigo DOT\n");
-
-        // ── 7. Liberar memoria ──────────────────────────────────────────────────
         gvFreeLayout(gvc, g);
         agclose(g);
         gvFreeContext(gvc);
@@ -209,19 +127,22 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
 
 std::unique_ptr<Graph> makeMainGraph() {
     auto graph = std::make_unique<Graph>();
-    Node a = Node("Inicio");
-    Node b = Node("Camino A");
-    Node c = Node("Camino B");
-    Node d = Node("Fin");
-    a.connectTo(b, Condition::TargetMoving);
-    a.connectTo(c, Condition::TargetMoving);
-    a.connectTo(d, Condition::Unknown);
-    b.connectTo(d, Condition::EffectApplied);
-    c.connectTo(d, Condition::EffectApplied);
-    graph->addNode(a);
-    graph->addNode(b);
-    graph->addNode(c);
-    graph->addNode(d);
+
+    // addNode devuelve el índice — úsalo directamente
+    int iA = graph->addNode(Node("Inicio"));
+    int iB = graph->addNode(Node("Camino A"));
+    int iC = graph->addNode(Node("Camino B"));
+    int iD = graph->addNode(Node("Fin"));
+
+    // connectTo ya no necesita referencias al objeto Node
+    // sino que se llama sobre el grafo con los índices
+    // ← necesitas exponer getNode() o conectar desde Graph:
+    graph->connect(iA, iB, Condition::TargetMoving);
+    graph->connect(iA, iC, Condition::TargetMoving);
+    graph->connect(iA, iD, Condition::Unknown);
+    graph->connect(iB, iD, Condition::EffectApplied);
+    graph->connect(iC, iD, Condition::EffectApplied);
+
     return graph;
 }
 
