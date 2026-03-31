@@ -260,21 +260,6 @@ std::unique_ptr<Graph> makeMainGraph() {
 
     findConnectingMaps(graph, map);
 
-    // addNode devuelve el índice — úsalo directamente
-    int iA = graph->addNode(Node("Inicio"));
-    int iB = graph->addNode(Node("Camino A"));
-    int iC = graph->addNode(Node("Camino B"));
-    int iD = graph->addNode(Node("Fin"));
-
-    // connectTo ya no necesita referencias al objeto Node
-    // sino que se llama sobre el grafo con los índices
-    // ← necesitas exponer getNode() o conectar desde Graph:
-    graph->connect(iA, iB, Condition::TargetMoving);
-    graph->connect(iA, iC, Condition::TargetMoving);
-    graph->connect(iA, iD, Condition::Unknown);
-    graph->connect(iB, iD, Condition::EffectApplied);
-    graph->connect(iC, iD, Condition::EffectApplied);
-
     return graph;
 }
 
