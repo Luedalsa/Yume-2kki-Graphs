@@ -230,15 +230,13 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf
                     if (cmd.code == 10810) {
                         std::cout << "Found tp command to world: " << cmd.parameters[0] << std::endl;
 
-                        if (treeMap) {
-                            auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
-                                return info.ID == cmd.parameters[0];
-                            });
-                            if (it != treeMap->maps.end()) {
-                                std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
-                                int newNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
-                                graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
-                            }
+                        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
+                            return info.ID == cmd.parameters[0];
+                        });
+                        if (it != treeMap->maps.end()) {
+                            std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
+                            int newNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
+                            graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
                         }
 
                         auto targetMap = loadMap(basePath, cmd.parameters[0]);
