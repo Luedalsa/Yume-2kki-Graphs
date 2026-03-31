@@ -139,14 +139,15 @@ std::unique_ptr<Graph> makeMainGraph() {
 
         int thisNodeId = 0;
 
-        if (treeMap) {
-            auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
-                return info.ID == 10;
-            });
-            if (it != treeMap->maps.end()) {
-                std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
-                thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
-            }
+        if (treeMap == nullptr) {
+            throw std::runtime_error("Error: treeMap no cargado. No se pueden obtener los nombres de los mapas.");
+        }
+        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
+            return info.ID == 10;
+        });
+        if (it != treeMap->maps.end()) {
+            std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
+            thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
         }
 
         // Find the chipset used by this map
