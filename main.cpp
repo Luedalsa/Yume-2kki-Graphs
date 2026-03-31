@@ -233,6 +233,7 @@ std::unique_ptr<Graph> makeMainGraph() {
                             });
                             if (it != treeMap->maps.end()) {
                                 std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
+                                graph->addNode(Node("Teletransporte a " + std::string(it->name)));
                             }
                         }
 
