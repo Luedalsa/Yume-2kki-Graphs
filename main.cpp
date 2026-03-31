@@ -137,12 +137,15 @@ std::unique_ptr<Graph> makeMainGraph() {
         std::cout << "Mapa cargado con éxito!" << std::endl;
         std::cout << "Dimensiones: " << map->width << "x" << map->height << std::endl;
 
+        int thisNodeId = 0;
+
         if (treeMap) {
             auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
                 return info.ID == 10;
             });
             if (it != treeMap->maps.end()) {
                 std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
+                thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
             }
         }
 
@@ -233,7 +236,8 @@ std::unique_ptr<Graph> makeMainGraph() {
                             });
                             if (it != treeMap->maps.end()) {
                                 std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
-                                graph->addNode(Node("Teletransporte a " + std::string(it->name)));
+                                int newNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
+                                graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
                             }
                         }
 
