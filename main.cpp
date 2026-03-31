@@ -235,7 +235,7 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf
                         });
                         if (it != treeMap->maps.end()) {
                             std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
-                            int newNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
+                            int newNodeId = graph->addNode(Node(std::string(it->name)));
                             graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
                         }
 
