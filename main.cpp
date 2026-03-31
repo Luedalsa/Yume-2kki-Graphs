@@ -111,6 +111,11 @@ std::string wideToUtf8(const std::wstring& wide) {
     return result;
 }
 
+std::wstring basePath;
+std::unique_ptr<lcf::rpg::Database> db = nullptr;
+std::unique_ptr<lcf::rpg::TreeMap> treeMap = nullptr;
+std::unique_ptr<lcf::rpg::Map> map = nullptr;
+
 std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) {
     std::wstringstream ss;
     ss << basePath << L"/Map" << std::setw(4) << std::setfill(L'0') << mapId << L".lmu";
@@ -125,64 +130,8 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
 
-std::unique_ptr<Graph> makeMainGraph(const std::unique_ptr<lcf::rpg::Map> & map) {
+std::unique_ptr<Graph> makeMainGraph() {
     auto graph = std::make_unique<Graph>();
-
-    // addNode devuelve el índice — úsalo directamente
-    int iA = graph->addNode(Node("Inicio"));
-    int iB = graph->addNode(Node("Camino A"));
-    int iC = graph->addNode(Node("Camino B"));
-    int iD = graph->addNode(Node("Fin"));
-
-    // connectTo ya no necesita referencias al objeto Node
-    // sino que se llama sobre el grafo con los índices
-    // ← necesitas exponer getNode() o conectar desde Graph:
-    graph->connect(iA, iB, Condition::TargetMoving);
-    graph->connect(iA, iC, Condition::TargetMoving);
-    graph->connect(iA, iD, Condition::Unknown);
-    graph->connect(iB, iD, Condition::EffectApplied);
-    graph->connect(iC, iD, Condition::EffectApplied);
-
-    return graph;
-}
-
-int wmain(int argc, wchar_t* argv[]) {
-    SetConsoleOutputCP(CP_UTF8);
-    if (argc < 2) {
-        std::cerr << "Uso: Yume-2kki-Graph.exe <ruta_al_juego>" << std::endl;
-        return 1;
-    }
-
-    std::wstring basePath(argv[1]);
-
-    // Use helper function to load map
-    auto map = loadMap(basePath, 10);
-
-    if (!map) {
-        return 1;
-    }
-
-    // NEW: Load the Database to get collision data
-    std::wstring ldbPathW = basePath + L"/RPG_RT.ldb";
-    std::ifstream ldbStream(ldbPathW, std::ios::binary);
-    std::unique_ptr<lcf::rpg::Database> db = nullptr;
-
-    if (ldbStream.is_open()) {
-        db = lcf::LDB_Reader::Load(ldbStream, "cp932");
-    } else {
-        std::cerr << "Advertencia: No se pudo cargar RPG_RT.ldb. La detección de colisiones no funcionará." << std::endl;
-    }
-
-    // Load the Map Tree to get map names
-    std::wstring lmtPathW = basePath + L"/RPG_RT.lmt";
-    std::ifstream lmtStream(lmtPathW, std::ios::binary);
-    std::unique_ptr<lcf::rpg::TreeMap> treeMap = nullptr;
-
-    if (lmtStream.is_open()) {
-        treeMap = lcf::LMT_Reader::Load(lmtStream, "cp932");
-    } else {
-        std::cerr << "Advertencia: No se pudo cargar RPG_RT.lmt. Los nombres de mapa no estarán disponibles." << std::endl;
-    }
 
     if (map) {
         std::cout << "Mapa cargado con éxito!" << std::endl;
@@ -302,7 +251,61 @@ int wmain(int argc, wchar_t* argv[]) {
         std::cerr << "Error al cargar el mapa." << std::endl;
     }
 
-    std::unique_ptr<Graph> graph = makeMainGraph(map);
+    // addNode devuelve el índice — úsalo directamente
+    int iA = graph->addNode(Node("Inicio"));
+    int iB = graph->addNode(Node("Camino A"));
+    int iC = graph->addNode(Node("Camino B"));
+    int iD = graph->addNode(Node("Fin"));
+
+    // connectTo ya no necesita referencias al objeto Node
+    // sino que se llama sobre el grafo con los índices
+    // ← necesitas exponer getNode() o conectar desde Graph:
+    graph->connect(iA, iB, Condition::TargetMoving);
+    graph->connect(iA, iC, Condition::TargetMoving);
+    graph->connect(iA, iD, Condition::Unknown);
+    graph->connect(iB, iD, Condition::EffectApplied);
+    graph->connect(iC, iD, Condition::EffectApplied);
+
+    return graph;
+}
+
+int wmain(int argc, wchar_t* argv[]) {
+    SetConsoleOutputCP(CP_UTF8);
+    if (argc < 2) {
+        std::cerr << "Uso: Yume-2kki-Graph.exe <ruta_al_juego>" << std::endl;
+        return 1;
+    }
+
+    basePath = argv[1];
+
+    // Use helper function to load map
+    map = loadMap(basePath, 10);
+
+    if (!map) {
+        return 1;
+    }
+
+    // NEW: Load the Database to get collision data
+    std::wstring ldbPathW = basePath + L"/RPG_RT.ldb";
+    std::ifstream ldbStream(ldbPathW, std::ios::binary);
+
+    if (ldbStream.is_open()) {
+        db = lcf::LDB_Reader::Load(ldbStream, "cp932");
+    } else {
+        std::cerr << "Advertencia: No se pudo cargar RPG_RT.ldb. La detección de colisiones no funcionará." << std::endl;
+    }
+
+    // Load the Map Tree to get map names
+    std::wstring lmtPathW = basePath + L"/RPG_RT.lmt";
+    std::ifstream lmtStream(lmtPathW, std::ios::binary);
+
+    if (lmtStream.is_open()) {
+        treeMap = lcf::LMT_Reader::Load(lmtStream, "cp932");
+    } else {
+        std::cerr << "Advertencia: No se pudo cargar RPG_RT.lmt. Los nombres de mapa no estarán disponibles." << std::endl;
+    }
+
+    std::unique_ptr<Graph> graph = makeMainGraph();
     graph->draw();
 
     return 0;
