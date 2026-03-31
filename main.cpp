@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <unordered_set>
 #include <windows.h>
 #include <sstream>
 #include <iomanip>
@@ -130,10 +131,16 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
 
-void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf::rpg::Map>& map) {
+void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered_set<int>& visited) {
+    if (visited.count(mapId)) {
+        return;
+    }
+    visited.insert(mapId);
+
+    auto map = loadMap(basePath, mapId);
 
     if (map) {
-        std::cout << "Mapa cargado con éxito!" << std::endl;
+        std::cout << "Mapa cargado con éxito! ID: " << mapId << std::endl;
         std::cout << "Dimensiones: " << map->width << "x" << map->height << std::endl;
 
         int thisNodeId = 0;
@@ -142,7 +149,7 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf
             throw std::runtime_error("Error: treeMap no cargado. No se pueden obtener los nombres de los mapas.");
         }
         auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
-            return info.ID == 10;
+            return info.ID == mapId;
         });
         if (it != treeMap->maps.end()) {
             std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
@@ -239,26 +246,22 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf
                             graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
                         }
 
-                        auto targetMap = loadMap(basePath, cmd.parameters[0]);
-                        if (targetMap) {
-                            std::cout << "Mapa de destino cargado con éxito!" << std::endl;
-                            std::cout << "Dimensiones: " << targetMap->width << "x" << targetMap->height << std::endl;
-                        } else {
-                            std::cerr << "Error al cargar el mapa de destino." << std::endl;
-                        }
+                        // Llamada recursiva en lugar de solo cargar
+                        findConnectingMaps(graph, cmd.parameters[0], visited);
                     }
                 }
             }
         }
     } else {
-        std::cerr << "Error al cargar el mapa." << std::endl;
+        std::cerr << "Error al cargar el mapa ID: " << mapId << std::endl;
     }
 }
 
 std::unique_ptr<Graph> makeMainGraph() {
     auto graph = std::make_unique<Graph>();
+    std::unordered_set<int> visited;
 
-    findConnectingMaps(graph, map);
+    findConnectingMaps(graph, 10, visited);
 
     return graph;
 }
@@ -271,13 +274,6 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     basePath = argv[1];
-
-    // Use helper function to load map
-    map = loadMap(basePath, 10);
-
-    if (!map) {
-        return 1;
-    }
 
     // NEW: Load the Database to get collision data
     std::wstring ldbPathW = basePath + L"/RPG_RT.ldb";
