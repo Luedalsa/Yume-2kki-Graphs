@@ -33,6 +33,89 @@ struct Edge {
 
 class Node {
     std::vector<Edge> edges;
+    public:
+    void connectTo(int dest, Condition cond = Condition::None, int weight = 1) {
+        edges.push_back({dest, cond, weight});
+    }
+};
+
+class Graph {
+public:
+    std::vector<Node> nodes;
+    void draw() {
+
+        // ── 1. Contexto de Graphviz ─────────────────────────────────────────────
+        GVC_t *gvc = gvContext();
+
+        // ── 2. Crear el grafo dirigido ──────────────────────────────────────────
+        // Agdirected  → grafo dirigido (digraph)
+        // Agundirected → grafo no dirigido
+        Agraph_t *g = agopen((char*)"mi_grafo", Agdirected, nullptr);
+
+        // ── 3. Atributos globales (se aplican a todos los nodos/aristas) ────────
+        agattr(g, AGNODE, (char*)"shape",     "circle");
+        agattr(g, AGNODE, (char*)"style",     "filled");
+        agattr(g, AGNODE, (char*)"fillcolor", "lightblue");
+        agattr(g, AGNODE, (char*)"fontname",  "Helvetica");
+
+        agattr(g, AGEDGE, (char*)"color",    "gray40");
+        agattr(g, AGEDGE, (char*)"fontname", "Helvetica");
+        agattr(g, AGEDGE, (char*)"fontsize", "10");
+
+        // ── 4. Crear nodos ──────────────────────────────────────────────────────
+        // agnode(grafo, nombre_interno, crear_si_no_existe)
+        Agnode_t *nA = agnode(g, (char*)"A", 1);
+        Agnode_t *nB = agnode(g, (char*)"B", 1);
+        Agnode_t *nC = agnode(g, (char*)"C", 1);
+        Agnode_t *nD = agnode(g, (char*)"D", 1);
+
+        // Personalizar nodos individualmente
+        agsafeset(nA, (char*)"label",     (char*)"Inicio",    (char*)"");
+        agsafeset(nA, (char*)"fillcolor", (char*)"#4CAF50",   (char*)"");
+        agsafeset(nA, (char*)"fontcolor", (char*)"white",     (char*)"");
+
+        agsafeset(nD, (char*)"label",     (char*)"Fin",       (char*)"");
+        agsafeset(nD, (char*)"fillcolor", (char*)"#F44336",   (char*)"");
+        agsafeset(nD, (char*)"fontcolor", (char*)"white",     (char*)"");
+        agsafeset(nD, (char*)"shape",     (char*)"doublecircle", (char*)"");
+
+        // ── 5. Crear aristas ────────────────────────────────────────────────────
+        // agedge(grafo, nodo_origen, nodo_destino, nombre, crear_si_no_existe)
+        Agedge_t *eAB = agedge(g, nA, nB, (char*)"AB", 1);
+        Agedge_t *eAC = agedge(g, nA, nC, (char*)"AC", 1);
+        Agedge_t *eBD = agedge(g, nB, nD, (char*)"BD", 1);
+        Agedge_t *eCD = agedge(g, nC, nD, (char*)"CD", 1);
+
+        // Etiquetar aristas
+        agsafeset(eAB, (char*)"label", (char*)"peso: 3", (char*)"");
+        agsafeset(eAC, (char*)"label", (char*)"peso: 1", (char*)"");
+        agsafeset(eBD, (char*)"label", (char*)"peso: 5", (char*)"");
+        agsafeset(eCD, (char*)"label", (char*)"peso: 2", (char*)"");
+
+        // Marcar el camino más corto (A→C→D) con color diferente
+        agsafeset(eAC, (char*)"color",     (char*)"#FF6600", (char*)"");
+        agsafeset(eAC, (char*)"penwidth",  (char*)"2.5",     (char*)"");
+        agsafeset(eCD, (char*)"color",     (char*)"#FF6600", (char*)"");
+        agsafeset(eCD, (char*)"penwidth",  (char*)"2.5",     (char*)"");
+
+        // ── 6. Aplicar layout y renderizar ─────────────────────────────────────
+        // Algoritmos disponibles: "dot" (jerárquico), "neato", "fdp", "circo", "twopi"
+        gvLayout(gvc, g, "dot");
+
+        gvRenderFilename(gvc, g, "png", "grafo.png");   // Imagen PNG
+        gvRenderFilename(gvc, g, "svg", "grafo.svg");   // SVG (vectorial)
+        gvRenderFilename(gvc, g, "dot", "grafo.dot");   // Código DOT generado
+
+        printf("Archivos generados:\n");
+        printf("  grafo.png  — imagen\n");
+        printf("  grafo.svg  — vectorial\n");
+        printf("  grafo.dot  — codigo DOT\n");
+
+        // ── 7. Liberar memoria ──────────────────────────────────────────────────
+        gvFreeLayout(gvc, g);
+        agclose(g);
+        gvFreeContext(gvc);
+    }
 };
 
 // Converts UTF-16 wide string to UTF-8
@@ -58,78 +141,10 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
 
-void createGraphSVG() {
-    // ── 1. Contexto de Graphviz ─────────────────────────────────────────────
-    GVC_t *gvc = gvContext();
-
-    // ── 2. Crear el grafo dirigido ──────────────────────────────────────────
-    // Agdirected  → grafo dirigido (digraph)
-    // Agundirected → grafo no dirigido
-    Agraph_t *g = agopen((char*)"mi_grafo", Agdirected, nullptr);
-
-    // ── 3. Atributos globales (se aplican a todos los nodos/aristas) ────────
-    agattr(g, AGNODE, (char*)"shape",     "circle");
-    agattr(g, AGNODE, (char*)"style",     "filled");
-    agattr(g, AGNODE, (char*)"fillcolor", "lightblue");
-    agattr(g, AGNODE, (char*)"fontname",  "Helvetica");
-
-    agattr(g, AGEDGE, (char*)"color",    "gray40");
-    agattr(g, AGEDGE, (char*)"fontname", "Helvetica");
-    agattr(g, AGEDGE, (char*)"fontsize", "10");
-
-    // ── 4. Crear nodos ──────────────────────────────────────────────────────
-    // agnode(grafo, nombre_interno, crear_si_no_existe)
-    Agnode_t *nA = agnode(g, (char*)"A", 1);
-    Agnode_t *nB = agnode(g, (char*)"B", 1);
-    Agnode_t *nC = agnode(g, (char*)"C", 1);
-    Agnode_t *nD = agnode(g, (char*)"D", 1);
-
-    // Personalizar nodos individualmente
-    agsafeset(nA, (char*)"label",     (char*)"Inicio",    (char*)"");
-    agsafeset(nA, (char*)"fillcolor", (char*)"#4CAF50",   (char*)"");
-    agsafeset(nA, (char*)"fontcolor", (char*)"white",     (char*)"");
-
-    agsafeset(nD, (char*)"label",     (char*)"Fin",       (char*)"");
-    agsafeset(nD, (char*)"fillcolor", (char*)"#F44336",   (char*)"");
-    agsafeset(nD, (char*)"fontcolor", (char*)"white",     (char*)"");
-    agsafeset(nD, (char*)"shape",     (char*)"doublecircle", (char*)"");
-
-    // ── 5. Crear aristas ────────────────────────────────────────────────────
-    // agedge(grafo, nodo_origen, nodo_destino, nombre, crear_si_no_existe)
-    Agedge_t *eAB = agedge(g, nA, nB, (char*)"AB", 1);
-    Agedge_t *eAC = agedge(g, nA, nC, (char*)"AC", 1);
-    Agedge_t *eBD = agedge(g, nB, nD, (char*)"BD", 1);
-    Agedge_t *eCD = agedge(g, nC, nD, (char*)"CD", 1);
-
-    // Etiquetar aristas
-    agsafeset(eAB, (char*)"label", (char*)"peso: 3", (char*)"");
-    agsafeset(eAC, (char*)"label", (char*)"peso: 1", (char*)"");
-    agsafeset(eBD, (char*)"label", (char*)"peso: 5", (char*)"");
-    agsafeset(eCD, (char*)"label", (char*)"peso: 2", (char*)"");
-
-    // Marcar el camino más corto (A→C→D) con color diferente
-    agsafeset(eAC, (char*)"color",     (char*)"#FF6600", (char*)"");
-    agsafeset(eAC, (char*)"penwidth",  (char*)"2.5",     (char*)"");
-    agsafeset(eCD, (char*)"color",     (char*)"#FF6600", (char*)"");
-    agsafeset(eCD, (char*)"penwidth",  (char*)"2.5",     (char*)"");
-
-    // ── 6. Aplicar layout y renderizar ─────────────────────────────────────
-    // Algoritmos disponibles: "dot" (jerárquico), "neato", "fdp", "circo", "twopi"
-    gvLayout(gvc, g, "dot");
-
-    gvRenderFilename(gvc, g, "png", "grafo.png");   // Imagen PNG
-    gvRenderFilename(gvc, g, "svg", "grafo.svg");   // SVG (vectorial)
-    gvRenderFilename(gvc, g, "dot", "grafo.dot");   // Código DOT generado
-
-    printf("Archivos generados:\n");
-    printf("  grafo.png  — imagen\n");
-    printf("  grafo.svg  — vectorial\n");
-    printf("  grafo.dot  — codigo DOT\n");
-
-    // ── 7. Liberar memoria ──────────────────────────────────────────────────
-    gvFreeLayout(gvc, g);
-    agclose(g);
-    gvFreeContext(gvc);
+std::unique_ptr<Graph> makeMainGraph() {
+    auto graph = std::make_unique<Graph>();
+    graph->nodes.insert(graph->nodes.begin(), 4, Node());
+    return graph;
 }
 
 int wmain(int argc, wchar_t* argv[]) {
@@ -288,7 +303,8 @@ int wmain(int argc, wchar_t* argv[]) {
         std::cerr << "Error al cargar el mapa." << std::endl;
     }
 
-    createGraphSVG();
+    std::unique_ptr<Graph> graph = makeMainGraph();
+    graph->draw();
 
     return 0;
 }
