@@ -130,8 +130,7 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
 
-std::unique_ptr<Graph> makeMainGraph() {
-    auto graph = std::make_unique<Graph>();
+void findConnectingMaps(std::unique_ptr<Graph>& graph, const std::unique_ptr<lcf::rpg::Map>& map) {
 
     if (map) {
         std::cout << "Mapa cargado con éxito!" << std::endl;
@@ -256,6 +255,12 @@ std::unique_ptr<Graph> makeMainGraph() {
     } else {
         std::cerr << "Error al cargar el mapa." << std::endl;
     }
+}
+
+std::unique_ptr<Graph> makeMainGraph() {
+    auto graph = std::make_unique<Graph>();
+
+    findConnectingMaps(graph, map);
 
     // addNode devuelve el índice — úsalo directamente
     int iA = graph->addNode(Node("Inicio"));
