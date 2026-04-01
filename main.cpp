@@ -166,6 +166,7 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered
             thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
         }
 
+        /*
         // Find the chipset used by this map
         const lcf::rpg::Chipset* chipset = nullptr;
         if (db) {
@@ -237,6 +238,7 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered
                 std::cout << std::endl;
             }
         }
+        */
 
         for (const auto& event : map->events) {
             //std::cout << "Evento detectado: " << event.name << std::endl;
