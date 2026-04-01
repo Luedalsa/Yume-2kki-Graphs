@@ -102,7 +102,7 @@ public:
             }
         }
 
-        gvLayout(gvc, g, "dot");
+        gvLayout(gvc, g, "sfdp");
         //gvRenderFilename(gvc, g, "png", "grafo.png");
         gvRenderFilename(gvc, g, "svg", "grafo.svg");
         //gvRenderFilename(gvc, g, "dot", "grafo.dot");
