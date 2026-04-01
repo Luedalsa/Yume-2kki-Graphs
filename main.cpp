@@ -15,6 +15,10 @@
 #include <sstream>
 #include <iomanip>
 #include <memory>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <atomic>
 
 #include <cgraph.h>
 #include <gvc.h>
@@ -54,18 +58,24 @@ public:
 
 class Graph {
     std::vector<Node> nodes;
+    mutable std::mutex mtx;
 public:
     int addNode(Node node) {
+        std::lock_guard<std::mutex> lock(mtx);
         nodes.push_back(std::move(node));
         return static_cast<int>(nodes.size()) - 1;
     }
 
     void connect(int from, int to,
              Condition cond = Condition::None, int weight = 1) {
+        std::lock_guard<std::mutex> lock(mtx);
         nodes[from].connectTo(to, cond, weight);
     }
 
     void draw() {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (nodes.empty()) return;
+
         GVC_t* gvc = gvContext();
         Agraph_t* g = agopen((char*)"mi_grafo", Agdirected, nullptr);
 
@@ -257,15 +267,6 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered
     }
 }
 
-std::unique_ptr<Graph> makeMainGraph() {
-    auto graph = std::make_unique<Graph>();
-    std::unordered_set<int> visited;
-
-    findConnectingMaps(graph, 10, visited);
-
-    return graph;
-}
-
 int wmain(int argc, wchar_t* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     if (argc < 2) {
@@ -295,7 +296,24 @@ int wmain(int argc, wchar_t* argv[]) {
         std::cerr << "Advertencia: No se pudo cargar RPG_RT.lmt. Los nombres de mapa no estarán disponibles." << std::endl;
     }
 
-    std::unique_ptr<Graph> graph = makeMainGraph();
+    std::unique_ptr<Graph> graph = std::make_unique<Graph>();
+    std::atomic<bool> isGenerating{true};
+
+    std::thread drawThread([&]() {
+        while (isGenerating) {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            if (isGenerating) {
+                graph->draw();
+            }
+        }
+    });
+
+    std::unordered_set<int> visited;
+    findConnectingMaps(graph, 10, visited);
+
+    isGenerating = false;
+    drawThread.join();
+
     graph->draw();
 
     return 0;
