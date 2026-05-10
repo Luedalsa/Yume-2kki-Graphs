@@ -158,13 +158,9 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered
         if (treeMap == nullptr) {
             throw std::runtime_error("Error: treeMap no cargado. No se pueden obtener los nombres de los mapas.");
         }
-        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
-            return info.ID == mapId;
-        });
-        if (it != treeMap->maps.end()) {
+        lcf::rpg::MapInfo* it = (&treeMap->maps[0]+(mapId));
             std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
             thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
-        }
 
         /*
         // Find the chipset used by this map
