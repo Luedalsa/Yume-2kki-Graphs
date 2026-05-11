@@ -133,7 +133,7 @@ lcf::rpg::MapInfo* getMapInfo(int mapId) {
         throw std::runtime_error("Error: treeMap no cargado.");
     }
 
-    lcf::rpg::MapInfo* it = (&treeMap->maps[0] + (mapId-1));
+    lcf::rpg::MapInfo* it = (&treeMap->maps[0] + (mapId));
 
     if (it != nullptr) {
         std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
