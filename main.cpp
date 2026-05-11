@@ -267,10 +267,9 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
                         int destId = cmd.parameters[0];
                         std::cout << "Found tp command to world: " << destId << std::endl;
 
-                        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(),
-                            [&](const lcf::rpg::MapInfo& i) { return i.ID == destId; });
+                        auto it = getMapInfo(destId);
 
-                        if (it != treeMap->maps.end()) {
+                        if (it != nullptr) {
                             std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
                             int newNodeId = graph->addNode(Node(std::string(it->name)));
                             graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
