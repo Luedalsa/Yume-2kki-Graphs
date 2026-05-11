@@ -73,6 +73,11 @@ public:
         nodes[from].connectTo(to, cond, weight);
     }
 
+    const Node* getNode(int index) const {
+        std::lock_guard<std::mutex> lock(mtx);
+        return &nodes[index];
+    }
+
     void draw() {
         std::lock_guard<std::mutex> lock(mtx);
         if (nodes.empty()) return;
