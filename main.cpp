@@ -182,7 +182,7 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
             throw std::runtime_error("Error: treeMap no cargado.");
         }
 
-        lcf::rpg::MapInfo* info = (&treeMap->maps[0] + mapId);
+        lcf::rpg::MapInfo* info = getMapInfo(mapId);
         std::cout << "Nombre del mapa: " << std::string(info->name) << std::endl;
         int thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(info->name)));
 
