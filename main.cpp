@@ -19,6 +19,7 @@
 #include <mutex>
 #include <chrono>
 #include <atomic>
+#include <queue>
 
 #include <cgraph.h>
 #include <gvc.h>
@@ -141,26 +142,33 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
 
-void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered_set<int>& visited) {
-    if (visited.count(mapId)) {
-        return;
-    }
-    visited.insert(mapId);
+void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
+    std::unordered_set<int> visited;
+    std::queue<int> cola;  // <-- la clave del cambio
 
-    auto map = loadMap(basePath, mapId);
+    cola.push(startMapId);
+    visited.insert(startMapId);
 
-    if (map) {
+    while (!cola.empty()) {
+        int mapId = cola.front();
+        cola.pop();
+
+        auto map = loadMap(basePath, mapId);
+        if (!map) {
+            std::cerr << "Error al cargar el mapa ID: " << mapId << std::endl;
+            continue;
+        }
+
         std::cout << "Mapa cargado con éxito! ID: " << mapId << std::endl;
         std::cout << "Dimensiones: " << map->width << "x" << map->height << std::endl;
 
-        int thisNodeId = 0;
-
         if (treeMap == nullptr) {
-            throw std::runtime_error("Error: treeMap no cargado. No se pueden obtener los nombres de los mapas.");
+            throw std::runtime_error("Error: treeMap no cargado.");
         }
-        lcf::rpg::MapInfo* it = (&treeMap->maps[0]+(mapId));
-            std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
-            thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(it->name)));
+
+        lcf::rpg::MapInfo* info = (&treeMap->maps[0] + mapId);
+        std::cout << "Nombre del mapa: " << std::string(info->name) << std::endl;
+        int thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(info->name)));
 
         /*
         // Find the chipset used by this map
@@ -237,31 +245,30 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int mapId, std::unordered
         */
 
         for (const auto& event : map->events) {
-            //std::cout << "Evento detectado: " << event.name << std::endl;
-            for (const auto& pages : event.pages) {
-                //std::cout << "  Página con condiciones: " << pages.condition << " y " << pages.event_commands.size() << " comandos" << std::endl;
-                for (const auto& cmd : pages.event_commands) {
-                    //std::cout << "    Comando: " << cmd.code << " - " << cmd.parameters.size() << " parámetros" << std::endl;
+            for (const auto& page : event.pages) {
+                for (const auto& cmd : page.event_commands) {
                     if (cmd.code == 10810) {
-                        std::cout << "Found tp command to world: " << cmd.parameters[0] << std::endl;
+                        int destId = cmd.parameters[0];
+                        std::cout << "Found tp command to world: " << destId << std::endl;
 
-                        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(), [&](const lcf::rpg::MapInfo& info) {
-                            return info.ID == cmd.parameters[0];
-                        });
+                        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(),
+                            [&](const lcf::rpg::MapInfo& i) { return i.ID == destId; });
+
                         if (it != treeMap->maps.end()) {
                             std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
                             int newNodeId = graph->addNode(Node(std::string(it->name)));
                             graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
                         }
 
-                        // Llamada recursiva en lugar de solo cargar
-                        findConnectingMaps(graph, cmd.parameters[0], visited);
+                        // En lugar de llamada recursiva, encola si no fue visitado
+                        if (!visited.count(destId)) {
+                            visited.insert(destId);
+                            cola.push(destId);
+                        }
                     }
                 }
             }
         }
-    } else {
-        std::cerr << "Error al cargar el mapa ID: " << mapId << std::endl;
     }
 }
 
@@ -306,8 +313,7 @@ int wmain(int argc, wchar_t* argv[]) {
         }
     });
 
-    std::unordered_set<int> visited;
-    findConnectingMaps(graph, 10, visited);
+    findConnectingMaps(graph, 10);
 
     isGenerating = false;
     drawThread.join();
