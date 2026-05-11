@@ -328,7 +328,7 @@ int wmain(int argc, wchar_t* argv[]) {
         }
     });
 
-    findConnectingMaps(graph, 10);
+    findConnectingMaps(graph, 2);
 
     isGenerating = false;
     drawThread.join();
