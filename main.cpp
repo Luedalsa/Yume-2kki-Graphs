@@ -23,6 +23,7 @@
 
 #include <cgraph.h>
 #include <gvc.h>
+#include <unordered_map>
 
 enum class Condition {
     None,
@@ -162,34 +163,25 @@ std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) 
 
     return lcf::LMU_Reader::Load(mapStream, "cp932");
 }
-
 void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
-    std::unordered_set<int> visited;
-    std::queue<int> cola;  // <-- la clave del cambio
+    std::unordered_map<int, int> mapIdToNodeId;  // mapId → nodeId en el grafo
+    std::queue<int> cola;
+    std::queue<int> colanodos;
+
+    int rootNodeId = graph->addNode(Node(std::string((getMapInfo(startMapId))->name)));
+    mapIdToNodeId[startMapId] = rootNodeId;
 
     cola.push(startMapId);
-    visited.insert(startMapId);
+    colanodos.push(rootNodeId);
 
     while (!cola.empty()) {
         int mapId = cola.front();
+        int thisNodeId = colanodos.front();
         cola.pop();
+        colanodos.pop();
 
         auto map = loadMap(basePath, mapId);
-        if (!map) {
-            std::cerr << "Error al cargar el mapa ID: " << mapId << std::endl;
-            continue;
-        }
-
-        std::cout << "Mapa cargado con éxito! ID: " << mapId << std::endl;
-        std::cout << "Dimensiones: " << map->width << "x" << map->height << std::endl;
-
-        if (treeMap == nullptr) {
-            throw std::runtime_error("Error: treeMap no cargado.");
-        }
-
-        lcf::rpg::MapInfo* info = getMapInfo(mapId);
-        std::cout << "Nombre del mapa: " << std::string(info->name) << std::endl;
-        int thisNodeId = graph->addNode(Node("Teletransporte a " + std::string(info->name)));
+        if (!map) continue;
 
         /*
         // Find the chipset used by this map
@@ -270,22 +262,21 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
                 for (const auto& cmd : page.event_commands) {
                     if (cmd.code == 10810) {
                         int destId = cmd.parameters[0];
-                        std::cout << "Found tp command to world: " << destId << std::endl;
+                        auto it = getMapInfo(destId);
+                        if (!it) continue;
 
-                        auto it = std::find_if(treeMap->maps.begin(), treeMap->maps.end(),
-                            [&](const lcf::rpg::MapInfo& i) { return i.ID == destId; });
+                        int destNodeId;
 
-                        if (it != treeMap->maps.end()) {
-                            std::cout << "  Nombre del destino: " << std::string(it->name) << std::endl;
-                            int newNodeId = graph->addNode(Node(std::string(it->name)));
-                            graph->connect(thisNodeId, newNodeId, Condition::TargetMoving);
-                        }
-
-                        // En lugar de llamada recursiva, encola si no fue visitado
-                        if (!visited.count(destId)) {
-                            visited.insert(destId);
+                        if (mapIdToNodeId.count(destId)) {
+                            destNodeId = mapIdToNodeId[destId];
+                        } else {
+                            destNodeId = graph->addNode(Node(std::string(it->name)));
+                            mapIdToNodeId[destId] = destNodeId;
                             cola.push(destId);
+                            colanodos.push(destNodeId);
                         }
+
+                        graph->connect(thisNodeId, destNodeId, Condition::TargetMoving);
                     }
                 }
             }
