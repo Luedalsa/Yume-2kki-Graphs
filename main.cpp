@@ -37,7 +37,7 @@ class Node;
 struct Edge {
     int  destIndex;
     Condition cond;
-    int  weight;
+    mutable int  weight;
 
     Edge(int destIndex, Condition cond = Condition::None, int weight = 1)
         : destIndex(destIndex), cond(cond), weight(weight) {}
@@ -52,6 +52,12 @@ public:
     explicit Node(const std::string& name) : name(name) {}
 
     void connectTo(int destIndex, Condition cond = Condition::None, int weight = 1) {
+        for (const Edge& edge : edges) {
+            if (edge.destIndex == destIndex && edge.cond == cond) {
+                edge.weight = std::min(edge.weight, weight);
+                return;
+            }
+        }
         edges.emplace_back(destIndex, cond, weight);
     }
 
