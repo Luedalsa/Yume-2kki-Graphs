@@ -262,6 +262,10 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
                 for (const auto& cmd : page.event_commands) {
                     if (cmd.code == 10810) {
                         int destId = cmd.parameters[0];
+                        if (destId == mapId) {
+                            std::cout << "Mapa " << mapId << " tiene un evento que se teletransporta a sí mismo. Ignorando..." << std::endl;
+                            continue;
+                        }
                         auto it = getMapInfo(destId);
                         if (!it) continue;
 
