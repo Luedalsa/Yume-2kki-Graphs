@@ -140,20 +140,19 @@ std::unique_ptr<lcf::rpg::Database> db = nullptr;
 std::unique_ptr<lcf::rpg::TreeMap> treeMap = nullptr;
 std::unique_ptr<lcf::rpg::Map> map = nullptr;
 
-lcf::rpg::MapInfo* getMapInfo(int mapId) {
-    if (treeMap == nullptr) {
+lcf::rpg::MapInfo* getMapInfo(int mapId) { // O(n)
+    if (treeMap == nullptr)
         throw std::runtime_error("Error: treeMap no cargado.");
+
+    for (auto& m : treeMap->maps) {
+        if (m.ID == mapId) {
+            std::cout << "Nombre del mapa: " << std::string(m.name) << std::endl;
+            return &m;
+        }
     }
 
-    lcf::rpg::MapInfo* it = (&treeMap->maps[0] + (mapId));
-
-    if (it != nullptr) {
-        std::cout << "Nombre del mapa: " << std::string(it->name) << std::endl;
-        return it;
-    } else {
-        std::cerr << "Error: No se encontró el mapa con ID " << mapId << " en el TreeMap." << std::endl;
-        return nullptr;
-    }
+    std::cerr << "Error: No se encontró el mapa con ID " << mapId << std::endl;
+    return nullptr;
 }
 
 std::unique_ptr<lcf::rpg::Map> loadMap(const std::wstring& basePath, int mapId) {
