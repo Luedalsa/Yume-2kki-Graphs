@@ -65,6 +65,16 @@ public:
     const std::vector<Edge>& getEdges() const { return edges; }
 };
 
+std::wstring basePath;
+// Converts UTF-16 wide string to UTF-8
+std::string wideToUtf8(const std::wstring& wide) {
+    if (wide.empty()) return {};
+    int size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string result(size - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, result.data(), size, nullptr, nullptr);
+    return result;
+}
+
 class Graph {
     std::vector<Node> nodes;
     mutable std::mutex mtx;
@@ -85,7 +95,6 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         return &nodes[index];
     }
-
     void draw() {
         std::lock_guard<std::mutex> lock(mtx);
         if (nodes.empty()) return;
@@ -93,10 +102,14 @@ public:
         GVC_t* gvc = gvContext();
         Agraph_t* g = agopen((char*)"mi_grafo", Agdirected, nullptr);
 
-        agattr(g, AGNODE, (char*)"shape",     (char*)"circle");
+        // Atributos globales de nodos
+        agattr(g, AGNODE, (char*)"shape",     (char*)"box");       // "box" permite mostrar imagen + label
         agattr(g, AGNODE, (char*)"style",     (char*)"filled");
         agattr(g, AGNODE, (char*)"fillcolor", (char*)"lightblue");
         agattr(g, AGNODE, (char*)"fontname",  (char*)"Helvetica");
+        agattr(g, AGNODE, (char*)"image",     (char*)"");          // atributo imagen (vacío por defecto)
+        agattr(g, AGNODE, (char*)"labelloc",  (char*)"b");         // label debajo de la imagen
+        agattr(g, AGNODE, (char*)"imagescale",(char*)"true");      // escalar imagen al nodo
         agattr(g, AGEDGE, (char*)"color",     (char*)"gray40");
         agattr(g, AGEDGE, (char*)"fontname",  (char*)"Helvetica");
         agattr(g, AGEDGE, (char*)"fontsize",  (char*)"10");
@@ -104,12 +117,24 @@ public:
         std::vector<Agnode_t*> agNodes(nodes.size());
         for (int i = 0; i < (int)nodes.size(); ++i) {
             agNodes[i] = agnode(g, (char*)nodes[i].name.c_str(), 1);
+
+            // Si el nodo tiene imagen asignada, setearla
+            if (!nodes[i].image.empty()) {
+                // Construir ruta absoluta al archivo de imagen
+                // Asume que las imágenes están en basePath + "/Picture/" + image + ".png"
+                // Ajusta la ruta según donde estén los assets del juego
+                std::string imgPath = wideToUtf8(basePath) + "\\Panorama\\" + nodes[i].image + ".png";
+                agsafeset(agNodes[i], (char*)"image", (char*)imgPath.c_str(), (char*)"");
+
+                // Con imagen: shape "box" o "none" (sin borde)
+                agsafeset(agNodes[i], (char*)"shape", (char*)"box", (char*)"");
+            }
         }
 
         for (int i = 0; i < (int)nodes.size(); ++i) {
             for (const Edge& edge : nodes[i].getEdges()) {
                 Agnode_t* src  = agNodes[i];
-                Agnode_t* dest = agNodes[edge.destIndex];  // ← siempre válido
+                Agnode_t* dest = agNodes[edge.destIndex];
                 Agedge_t* e = agedge(g, src, dest, nullptr, 1);
                 std::string label = "peso: " + std::to_string(edge.weight);
                 agsafeset(e, (char*)"label", (char*)label.c_str(), (char*)"");
@@ -117,8 +142,6 @@ public:
         }
 
         gvLayout(gvc, g, "sfdp");
-        //gvRenderFilename(gvc, g, "png", "grafo.png");
-        //gvRenderFilename(gvc, g, "svg", "grafo.svg");
         gvRenderFilename(gvc, g, "dot", "grafo.dot");
 
         gvFreeLayout(gvc, g);
@@ -127,16 +150,6 @@ public:
     }
 };
 
-// Converts UTF-16 wide string to UTF-8
-std::string wideToUtf8(const std::wstring& wide) {
-    if (wide.empty()) return {};
-    int size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string result(size - 1, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, result.data(), size, nullptr, nullptr);
-    return result;
-}
-
-std::wstring basePath;
 std::unique_ptr<lcf::rpg::Database> db = nullptr;
 std::unique_ptr<lcf::rpg::TreeMap> treeMap = nullptr;
 std::unique_ptr<lcf::rpg::Map> map = nullptr;
