@@ -47,6 +47,7 @@ class Node {
     std::vector<Edge> edges;
 public:
     std::string name;
+    mutable std::string image;
 
     Node() = default;
     explicit Node(const std::string& name) : name(name) {}
@@ -187,6 +188,8 @@ void findConnectingMaps(std::unique_ptr<Graph>& graph, int startMapId) {
 
         auto map = loadMap(basePath, mapId);
         if (!map) continue;
+
+        graph->getNode(thisNodeId)->image = std::string(map->parallax_name);
 
         /*
         // Find the chipset used by this map
